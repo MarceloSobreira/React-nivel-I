@@ -2,9 +2,10 @@ import React, { Component } from 'react';
 import $ from 'jquery';
 import InputCustomizado from './componentes/InputCustomizado';
 import BotaoSubmitCustomizado from './componentes/BotaoSubmitCustomizado';
+import PubSub from 'pubsub-js';
 
 
-export class FormularioAutor extends Component{
+class FormularioAutor extends Component{
     
     constructor() {
         super();
@@ -24,9 +25,9 @@ export class FormularioAutor extends Component{
           dataType: 'json',
           type: 'post',
           data: JSON.stringify({nome: this.state.nome, email: this.state.email, senha: this.state.senha}),
-          success: function(resposta){
-            this.setState({lista:resposta});
-          }.bind(this),
+          success: function(novaListagem){
+            PubSub.publish('atualiza-lista-autores', novaListagem);
+          },
           error: function(resposta){
             console.log("erro");        
           }
@@ -60,22 +61,8 @@ export class FormularioAutor extends Component{
 }
 
 
-export class TabelaAutores extends Component {
-    
-    constructor() {
-        super();
-        this.state = {lista: []};
-    }
+class TabelaAutores extends Component {
 
-    componentDidMount(){
-        $.ajax({
-            url:"http://cdc-react.herokuapp.com/api/autores",
-            dataType: 'json',
-            success: function(resposta){      
-            this.setState({lista: resposta});
-            }.bind(this)
-        });
-    }
     
     render() {
         return(
@@ -89,7 +76,7 @@ export class TabelaAutores extends Component {
                   </thead>
                   <tbody>
                     {
-                      this.state.lista.map(autor => (
+                      this.props.lista.map(autor => (
                         <tr key={autor.id}>
                           <td>{autor.nome}</td>
                           <td>{autor.email}</td>
@@ -102,4 +89,37 @@ export class TabelaAutores extends Component {
             </div> 
         );
     }
+}
+
+export default class AutorBox extends Component {
+
+    constructor() {
+        super();
+        this.state = {lista: []};
+    }
+
+    componentDidMount(){
+        $.ajax({
+            url:"http://cdc-react.herokuapp.com/api/autores",
+            dataType: 'json',
+            success: function(resposta){      
+            this.setState({lista: resposta});
+            }.bind(this)
+        });
+
+        PubSub.subscribe('atualiza-lista-autores', function(topico, novaLista) { 
+            this.setState({lista: novaLista});
+        }.bind(this));
+    }
+
+
+    render() {
+        return(
+            <div>
+                <FormularioAutor/>
+                <TabelaAutores lista={this.state.lista}/>
+            </div>
+        );
+    }
+
 }
